@@ -1,6 +1,8 @@
 from ctypes import *
 import math
 import time
+import sys
+import os
 from scipy.signal import resample
 try:
     from sdl2 import *
@@ -21,17 +23,23 @@ class RawAudio(object):
                               SDL_AudioCallback(self._play_next))
     obtained = SDL_AudioSpec(0,0,0,0)
     self._buffer = []
-    
+
+    count = SDL_GetNumAudioDevices(0)
+    print(count)
+    for i in range(count):
+        print("Audio device {}: {}".format(i, SDL_GetAudioDeviceName(i, 0)))
+
     self.devid = devid = SDL_OpenAudioDevice(None, 0, self.spec, obtained, 0)
-    print obtained.freq
+    print(obtained.freq)
     self.outputspec = obtained
+    print("Audio device {}: {}".format(devid, SDL_GetAudioDeviceName(devid, 0)))
     if devid == 0:
         raise RuntimeError("Unable to open audio device: {}".format(SDL_GetError()))
     SDL_PauseAudioDevice(devid, 0)
     
   def _play_next(self, notused, stream, length):
     if len(self._buffer) < length:
-      print 'input stalled', len(self._buffer)
+      print('input stalled', len(self._buffer))
       #return
     numbytes = min(length, len(self._buffer))
     for i in range(0, numbytes):

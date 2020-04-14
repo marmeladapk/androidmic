@@ -1,8 +1,6 @@
 package com.alimgokkaya.androidmic;
 
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -11,18 +9,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
 import android.widget.TextView;
-
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
+import android.content.Intent;
+import android.support.v4.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int SERVER_PORT = 9900;
     private EditText mEditIp;
     private RecordThread recordThread;
     private int sampleRate;
@@ -30,41 +21,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTextStatus;
     private View mBtnStart;
     private View mBtnStop;
-
-
-    public class UdpStreamClient implements RecordingListener {
-
-        private InetAddress hostAddress;
-        private DatagramSocket mSocket;
-        private int packetIndex = 0;
-
-        public UdpStreamClient(String ip) {
-            try {
-                hostAddress =  InetAddress.getByName(ip);
-                mSocket = new DatagramSocket();
-            } catch (SocketException e) {
-                e.printStackTrace();
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void onBytes(int freq, byte[] buffer, int numBytes) {
-            byte[] message = ByteBuffer.allocate(numBytes + 8)
-                    .putInt(freq)
-                    .putInt(packetIndex)
-                    .put(buffer, 0, numBytes)
-                    .array();
-            DatagramPacket p = new DatagramPacket(message, message.length, hostAddress, SERVER_PORT);
-            try {
-                mSocket.send(p);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            packetIndex++;
-        }
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,23 +37,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 String ip = mEditIp.getText().toString();
-                if (recordThread == null) {
-                    recordThread = new RecordThread(sampleRate, bufferSize, new UdpStreamClient(ip));
-                    recordThread.start();
-                    showRecording(true);
-                }
+                startService(sampleRate, bufferSize, ip);
             }
         });
         mBtnStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (recordThread != null) {
-                    recordThread.finish();
-                    //byte buffer[] = recordThread.getData();
-                    //thread.setSoundData(buffer,(int)(200*mRecordRatio),buffer.length/2-1);
-                    recordThread = null;
-                    showRecording(false);
-                }
+                stopService();
             }
         });
 
@@ -143,5 +89,19 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public void startService(int sampleRate, int bufferSize, String ip) {
+        Intent serviceIntent = new Intent(this, RecordService.class);
+        serviceIntent.putExtra("sampleRate", sampleRate);
+        serviceIntent.putExtra("bufferSize", bufferSize);
+        serviceIntent.putExtra("ip", ip);
+        ContextCompat.startForegroundService(this, serviceIntent);
+        showRecording(true);
+    }
+    public void stopService() {
+        Intent serviceIntent = new Intent(this, RecordService.class);
+        stopService(serviceIntent);
+        showRecording(false);
     }
 }
